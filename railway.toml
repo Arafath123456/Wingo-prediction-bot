@@ -1,0 +1,17 @@
+[build]
+builder = "docker"
+dockerfilePath = "./Dockerfile"
+
+[deploy]
+startCommand = "./start.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 10
+
+[plugins.postgresql]
+enabled = true
+
+[plugins.redis]
+enabled = true
+
+[environment]
+variables = { DATABASE_URL = "postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}" }

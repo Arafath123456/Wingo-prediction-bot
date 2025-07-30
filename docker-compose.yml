@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    image: wingo-bot:latest
+    environment:
+      # Telegram
+      BOT_TOKEN: ${BOT_TOKEN}
+      USER_WHITELIST: ${USER_WHITELIST}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS}
+      
+      # Database
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # Security
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      RATE_LIMIT_GENERATE: ${RATE_LIMIT_GENERATE}
+      RATE_LIMIT_HISTORY: ${RATE_LIMIT_HISTORY}
+      RATE_LIMIT_STATS: ${RATE_LIMIT_STATS}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE}
+      
+      # ML Engine
+      MODEL_CACHE_SIZE: ${MODEL_CACHE_SIZE}
+      SEQUENCE_LENGTH: ${SEQUENCE_LENGTH}
+      N_LAGS: ${N_LAGS}
+      ROLLING_WINDOWS: ${ROLLING_WINDOWS}
+      
+      # Monitoring
+      SENTRY_DSN: ${SENTRY_DSN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      PROMETHEUS_PORT: ${PROMETHEUS_PORT}
+      
+      # Celery
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      MIN_WORKERS: ${MIN_WORKERS}
+      MAX_WORKERS: ${MAX_WORKERS}
+      
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT}
+      TZ: ${TZ}
+    ports:
+      - "8000:8000"   # Health check endpoint
+      - "9100:9100"   # Prometheus metrics
+    volumes:
+      - model_cache:/app/ml_engine/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "./healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - wingo-network
+
+  worker:
+    image: wingo-bot:latest
+    command: celery -A scaling.message_queue worker --loglevel=info -Q predictions,training
+    environment:
+      # Same environment as app service
+      BOT_TOKEN: ${BOT_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SENTRY_DSN: ${SENTRY_DSN}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      LOG_LEVEL: ${LOG_LEVEL}
+      ENVIRONMENT: ${ENVIRONMENT}
+    volumes:
+      - model_cache:/app/ml_engine/models
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - wingo-network
+
+  autoscaler:
+    image: wingo-bot:latest
+    command: python scaling/autoscaler.py
+    environment:
+      # Same environment as app service
+      REDIS_HOST: redis
+      RAILWAY_API_KEY: ${RAILWAY_API_KEY}
+      SERVICE_ID: ${SERVICE_ID}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - wingo-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wingo-network
+
+  redis:
+    image: redis:7
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wingo-network
+
+volumes:
+  pgdata:
+  redisdata:
+  model_cache:
+
+networks:
+  wingo-network:
+    driver: bridge

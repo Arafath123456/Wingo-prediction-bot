@@ -1,0 +1,50 @@
+# Core Dependencies
+python-dotenv==1.0.1
+loguru==0.7.2
+
+# Telegram Bot
+python-telegram-bot==20.6
+httpx==0.27.0
+
+# Database
+SQLAlchemy==2.0.30
+psycopg2-binary==2.9.9
+alembic==1.13.1
+redis==5.0.4
+
+# Data Processing
+pandas==2.2.2
+numpy==1.26.4
+
+# Machine Learning
+tensorflow==2.16.1
+scikit-learn==1.5.0
+xgboost==2.0.3
+lightgbm==4.3.0
+prophet==1.3.2
+pmdarima==2.0.4
+statsmodels==0.14.1
+joblib==1.4.0
+
+# Scheduling
+schedule==1.2.1
+APScheduler==3.10.4
+
+# Monitoring & Error Tracking
+prometheus-client==0.20.0
+sentry-sdk==2.5.0
+
+# Cryptography
+cryptography==42.0.5
+
+# Celery
+celery==5.4.0
+
+# Backups
+boto3==1.34.112
+
+# Utilities
+pydantic==2.7.1
+python-dateutil==2.9.0.post0
+tqdm==4.66.2
+matplotlib==3.8.4  # For backtesting reports
