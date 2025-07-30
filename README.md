@@ -1,0 +1,1 @@
+# Wingo-prediction-bot
